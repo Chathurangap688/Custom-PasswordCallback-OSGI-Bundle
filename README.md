@@ -1,1 +1,2 @@
-# Custom-PasswordCallback-OSGI-Bundle
+# Custom PasswordCallback OSGI Bundle
+The WSO2 identity server has already implemented a password-callback OSGI bundle. It supports obtaining a SMAL assertion (token) by providing username and password of the user. But sometimes, some applications need a different method to obtain SMAL token. As an example, a application needs to obtaining SMAL token by providing user id and password, or email and password. In such cases we cannot use the normal method. Therefore we need to write a custom OSGI bundle to achieve our requirements. 
