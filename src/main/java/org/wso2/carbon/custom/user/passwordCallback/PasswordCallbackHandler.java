@@ -4,6 +4,7 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.ws.security.WSPasswordCallback;
+import org.wso2.carbon.custom.user.passwordCallback.internal.PasswordCallbackServiceComponent;
 import org.wso2.carbon.identity.core.util.IdentityUtil;
 import org.wso2.carbon.registry.api.Registry;
 import org.wso2.carbon.user.core.UserCoreConstants;
@@ -19,13 +20,10 @@ import java.util.regex.Pattern;
 
 public class PasswordCallbackHandler implements CallbackHandler {
     private static final Log log = LogFactory.getLog(PasswordCallbackHandler.class);
-    private String serviceGroupId = null;
-    private String serviceId = null;
-    private Registry registry = null;
     private UserRealm realm = null;
+
     @Override
     public void handle(Callback[] callbacks) throws IOException, UnsupportedCallbackException {
-        log.info("*****************************************************************************\n\n\n\n\n***********");
         for (int i = 0; i < callbacks.length; i++) {
             WSPasswordCallback passwordCallback = (WSPasswordCallback) callbacks[i];
             String username = passwordCallback.getIdentifer();
@@ -68,7 +66,7 @@ public class PasswordCallbackHandler implements CallbackHandler {
      * @param email
      * @return true/false
      */
-    public static boolean isValidEmail(String email)
+    private boolean isValidEmail(String email)
     {
 //        String emailRegex = "^[a-zA-Z0-9_+&*-]+(?:\\."+
 //                "[a-zA-Z0-9_+&*-]+)*@" +
@@ -90,30 +88,26 @@ public class PasswordCallbackHandler implements CallbackHandler {
      * @throws Exception
      */
     public boolean authenticateUser(String user, String password) throws Exception {
-        boolean isAuthenticated = false;
         boolean isAuthorized = false;
+        boolean isAuthenticated = false;
         realm = (UserRealm) SecurityServiceHolder.getRealmService().getTenantUserRealm(-1234);
         if(isValidEmail(user)){
-            log.info("Get username by email..");
             String[] userList = realm.getUserStoreManager().getUserList("http://wso2.org/claims/emailaddress",  user, null);
             if(userList.length == 1){
                 user = userList[0];
+                if (log.isDebugEnabled()) {
+                    log.debug("Available username is: " + user);
+                }
             }else {
-                log.error("Email is not available");
+                log.warn("Email is not available");
                 return false;
             }
-            user = userList[0];
+        }else {
+            if (log.isDebugEnabled()) {
+                log.debug("This is not a valid email. Considering as a username");
+            }
         }
         try {
-            // Verify whether user is in same tenant that service has been deployed.
-            if (realm.getUserStoreManager().getTenantId() !=
-                    SecurityServiceHolder.getRealmService().getTenantManager().getTenantId(MultitenantUtils.getTenantDomain(user))) {
-                if (log.isDebugEnabled()) {
-                    log.debug("User : " + user + " trying access service which is deployed in different tenant domain");
-                }
-                return false;
-            }
-
             String tenantAwareUserName = MultitenantUtils.getTenantAwareUsername(user);
 
             isAuthenticated = realm.getUserStoreManager().authenticate(
@@ -134,14 +128,10 @@ public class PasswordCallbackHandler implements CallbackHandler {
                                 "org.wso2.carbon.sts-5.5.1/wso2carbon-sts",
                                 UserCoreConstants.INVOKE_SERVICE_PERMISSION);
                 if (!isAuthorized) {
-                    if (log.isDebugEnabled()) {
-                        log.debug("Authorization failure for user : " + tenantAwareUserName);
-                    }
+                    log.warn("Authorization failure for user : " + tenantAwareUserName);
                 }
             } else {
-                if (log.isDebugEnabled()) {
-                    log.debug("Authentication failure for user : " + tenantAwareUserName);
-                }
+                log.warn("Authentication failure for user : " + tenantAwareUserName);
             }
 
             return isAuthorized;
